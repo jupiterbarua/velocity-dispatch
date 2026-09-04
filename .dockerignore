@@ -1,0 +1,8 @@
+target
+.git
+.github
+docs
+infra
+loadtest
+*.md
+.env

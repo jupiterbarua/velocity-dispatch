@@ -1,0 +1,91 @@
+version: "3.9"
+
+# Full local stack: Postgres + LocalStack (standing in for SQS, EventBridge,
+# S3, SNS, Lambda) + the two long-running services. `dispatch-notify-lambda`
+# is deliberately NOT wired into this compose file as an always-on
+# container — in real AWS it's invoked on-demand by the EventBridge rule,
+# not run as a server, so exercising it locally is done with
+# `cargo lambda watch` / `cargo lambda invoke` (see services/dispatch-notify-lambda/README.md)
+# rather than docker-compose. That distinction — "this deployable is
+# event-invoked, not long-running" — is itself one of the things worth being
+# able to explain in an interview.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: dispatch
+      POSTGRES_PASSWORD: dispatch
+      POSTGRES_DB: dispatch
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dispatch"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  localstack:
+    image: localstack/localstack:3
+    environment:
+      SERVICES: sqs,events,s3,sns,lambda
+      DEFAULT_REGION: eu-central-1
+      DEBUG: 0
+    ports:
+      - "4566:4566"
+    volumes:
+      - "./infra/localstack/init-aws.sh:/etc/localstack/init/ready.d/init-aws.sh:ro"
+      - "localstack-data:/var/lib/localstack"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+
+  dispatch-api:
+    build:
+      context: .
+      dockerfile: services/dispatch-api/Dockerfile
+    env_file: .env.example
+    environment:
+      DATABASE_URL: postgres://dispatch:dispatch@postgres:5432/dispatch
+      AWS_ENDPOINT_URL: http://localstack:4566
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  dispatch-worker:
+    build:
+      context: .
+      dockerfile: services/dispatch-worker/Dockerfile
+    env_file: .env.example
+    environment:
+      DATABASE_URL: postgres://dispatch:dispatch@postgres:5432/dispatch
+      AWS_ENDPOINT_URL: http://localstack:4566
+    # Depends only on its actual infrastructure dependencies (Postgres,
+    # LocalStack) — NOT on dispatch-api. The two services no longer share a
+    # startup-order dependency now that both run their own migrations (see
+    # the comment in services/dispatch-worker/src/db.rs::connect) — Compose
+    # is free to start them in either order or simultaneously, which is the
+    # actual test of "these are independent services," not just an
+    # architecture diagram claim.
+    depends_on:
+      postgres:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  localstack-data:

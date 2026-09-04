@@ -1,0 +1,29 @@
+[package]
+name = "dispatch-worker"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Consumes OrderCreated from SQS, runs nearest-driver matching, publishes DispatchAssigned to EventBridge"
+
+[[bin]]
+name = "dispatch-worker"
+path = "src/main.rs"
+
+[dependencies]
+dispatch-core.workspace = true
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+thiserror.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "uuid", "chrono", "macros", "migrate"] }
+aws-config = { version = "1", features = ["behavior-version-latest"] }
+aws-sdk-sqs = "1"
+aws-sdk-eventbridge = "1"
+dotenvy = "0.15"

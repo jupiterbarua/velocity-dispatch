@@ -1,0 +1,33 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/dispatch-core",
+    "services/dispatch-api",
+    "services/dispatch-worker",
+    "services/dispatch-notify-lambda",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["Jupiter Barua <jupiterbarua@gmail.com>"]
+license = "MIT"
+
+[workspace.dependencies]
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+uuid = { version = "1", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+thiserror = "1"
+anyhow = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+dispatch-core = { path = "crates/dispatch-core" }
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
