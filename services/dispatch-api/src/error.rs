@@ -11,7 +11,10 @@ pub enum ApiError {
     Database(#[from] sqlx::Error),
 
     #[error("event publish error")]
-    Publish(#[from] aws_sdk_sqs::error::SdkError<aws_sdk_sqs::operation::send_message::SendMessageError>),
+    Publish(
+        #[from]
+        aws_sdk_sqs::error::SdkError<aws_sdk_sqs::operation::send_message::SendMessageError>,
+    ),
 
     #[error("resource not found")]
     NotFound,

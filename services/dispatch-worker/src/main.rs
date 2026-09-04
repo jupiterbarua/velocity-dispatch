@@ -30,7 +30,8 @@ async fn main() -> anyhow::Result<()> {
     let pool = db::connect(&cfg).await?;
     let aws_cfg = aws_config::load_defaults(aws_config::BehaviorVersion::latest()).await;
     let sqs = SqsClient::new(&aws_cfg);
-    let publisher = DispatchEventPublisher::new(EventBridgeClient::new(&aws_cfg), cfg.event_bus_name.clone());
+    let publisher =
+        DispatchEventPublisher::new(EventBridgeClient::new(&aws_cfg), cfg.event_bus_name.clone());
 
     // Bounds how many order-assignment transactions run concurrently across
     // the whole worker process — see Config::max_in_flight for the

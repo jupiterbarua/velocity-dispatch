@@ -16,7 +16,10 @@ pub async fn write_audit_record(
         return Ok(());
     };
 
-    let key = format!("assignments/{}/{}.json", assigned.order_id, assigned.assignment_id);
+    let key = format!(
+        "assignments/{}/{}.json",
+        assigned.order_id, assigned.assignment_id
+    );
     let body = serde_json::to_vec_pretty(assigned)?;
 
     client

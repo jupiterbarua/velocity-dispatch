@@ -16,7 +16,13 @@ impl OrderEventPublisher {
         Self { client, queue_url }
     }
 
-    pub async fn publish(&self, event: &OrderCreated) -> Result<(), aws_sdk_sqs::error::SdkError<aws_sdk_sqs::operation::send_message::SendMessageError>> {
+    pub async fn publish(
+        &self,
+        event: &OrderCreated,
+    ) -> Result<
+        (),
+        aws_sdk_sqs::error::SdkError<aws_sdk_sqs::operation::send_message::SendMessageError>,
+    > {
         let body = serde_json::to_string(event).expect("OrderCreated is always serializable");
 
         self.client

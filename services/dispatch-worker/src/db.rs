@@ -77,7 +77,10 @@ pub async fn available_drivers_for_update(
         .map(|r| Driver {
             id: r.id,
             name: r.name,
-            location: GeoPoint { lat: r.lat, lon: r.lon },
+            location: GeoPoint {
+                lat: r.lat,
+                lon: r.lon,
+            },
             status: DriverStatus::Available,
             updated_at: Utc::now(),
         })
