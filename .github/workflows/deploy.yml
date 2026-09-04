@@ -61,6 +61,10 @@ jobs:
         with:
           context: .
           file: services/${{ matrix.service }}/Dockerfile
+          # Same reasoning as ci.yml: pinned explicitly so this always ships
+          # the fully-optimized production stage, never the local-only `dev`
+          # stage that dispatch-api/dispatch-worker's Dockerfiles also define.
+          target: runtime
           push: true
           tags: |
             ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ matrix.repo }}:${{ steps.tag.outputs.tag }}

@@ -48,6 +48,12 @@ services:
     build:
       context: .
       dockerfile: services/dispatch-api/Dockerfile
+      # Debug-profile build (see the Dockerfile's `dev` stage comment) — a
+      # from-scratch `--release` build under Cargo.toml's lto/codegen-units=1
+      # profile can take well over an hour on a real laptop. CI and
+      # deploy.yml never build this target; they explicitly pass
+      # `target: runtime` and always ship the fully-optimized binary.
+      target: dev
     env_file: .env.example
     environment:
       DATABASE_URL: postgres://dispatch:dispatch@postgres:5432/dispatch
@@ -69,6 +75,8 @@ services:
     build:
       context: .
       dockerfile: services/dispatch-worker/Dockerfile
+      # See the matching comment on dispatch-api's build.target above.
+      target: dev
     env_file: .env.example
     environment:
       DATABASE_URL: postgres://dispatch:dispatch@postgres:5432/dispatch

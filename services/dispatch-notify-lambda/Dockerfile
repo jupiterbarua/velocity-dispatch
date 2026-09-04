@@ -8,7 +8,7 @@
 # Docker/ECR pipeline (like this project's dispatch-api/worker) actually use
 # in practice — one build system for every deployable, not two.
 
-FROM public.ecr.aws/lambda/provided:al2023 AS runtime
+FROM public.ecr.aws/lambda/provided:al2023 AS lambda-base
 
 FROM lukemathwalker/cargo-chef:latest-rust-1 AS chef
 WORKDIR /app
@@ -23,6 +23,10 @@ RUN cargo chef cook --release --recipe-path recipe.json -p dispatch-notify-lambd
 COPY . .
 RUN cargo build --release -p dispatch-notify-lambda
 
-FROM runtime
+# Named `runtime` (not left anonymous) so CI/deploy.yml can pin
+# `target: runtime` uniformly across all three services' Dockerfiles,
+# instead of special-casing this one — see the same convention in
+# dispatch-api/Dockerfile and dispatch-worker/Dockerfile.
+FROM lambda-base AS runtime
 COPY --from=builder /app/target/release/bootstrap /var/runtime/bootstrap
 CMD ["bootstrap"]

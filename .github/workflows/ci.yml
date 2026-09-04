@@ -70,6 +70,13 @@ jobs:
         with:
           context: .
           file: services/${{ matrix.service }}/Dockerfile
+          # Explicit, not left to "whichever stage is last in the file" —
+          # every service's Dockerfile names its production stage `runtime`
+          # specifically so this can be pinned uniformly here. Without this,
+          # adding the local-dev `dev` stage after `runtime` in
+          # dispatch-api/Dockerfile and dispatch-worker/Dockerfile would have
+          # silently changed what CI builds.
+          target: runtime
           push: false
           tags: velocity-dispatch/${{ matrix.service }}:ci
           cache-from: type=gha
