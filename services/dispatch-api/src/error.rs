@@ -16,14 +16,8 @@ pub enum ApiError {
     #[error("database error")]
     Database(#[from] sqlx::Error),
 
-    #[error("event publish error")]
-    Publish(#[from] SqsSendError),
-
     #[error("resource not found")]
     NotFound,
-
-    #[error("invalid request: {0}")]
-    BadRequest(String),
 }
 
 #[derive(Serialize)]
@@ -42,8 +36,7 @@ impl ResponseError for ApiError {
             }
             ApiError::Core(_) => StatusCode::UNPROCESSABLE_ENTITY,
             ApiError::NotFound => StatusCode::NOT_FOUND,
-            ApiError::BadRequest(_) => StatusCode::BAD_REQUEST,
-            ApiError::Database(_) | ApiError::Publish(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            ApiError::Database(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 
@@ -53,7 +46,7 @@ impl ResponseError for ApiError {
         // site) and return a generic message. Core validation errors are
         // safe to echo back since they describe the caller's own input.
         let message = match self {
-            ApiError::Database(_) | ApiError::Publish(_) => "internal server error".to_string(),
+            ApiError::Database(_) => "internal server error".to_string(),
             other => other.to_string(),
         };
         HttpResponse::build(self.status_code()).json(ErrorBody { error: message })
