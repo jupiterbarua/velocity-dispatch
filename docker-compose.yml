@@ -9,6 +9,20 @@ version: "3.9"
 # rather than docker-compose. That distinction — "this deployable is
 # event-invoked, not long-running" — is itself one of the things worth being
 # able to explain in an interview.
+#
+# Two ways to get dispatch-api/dispatch-worker running, your choice:
+#   1. Pull the prebuilt image CI already tested and published (no local
+#      compile at all — recommended if your machine is older/lower-power):
+#        docker compose pull dispatch-api dispatch-worker
+#        docker compose up
+#   2. Build locally from source (needs a reasonably capable machine — see
+#      each service's Dockerfile `dev` stage comment for why the first
+#      build is still nontrivial even in debug mode):
+#        docker compose up --build
+# Both `image:` and `build:` are set below on purpose: `docker compose pull`
+# uses `image:`, `docker compose build`/`--build` uses `build:` and tags the
+# result as that same `image:` name, and plain `docker compose up` (no pull,
+# no --build) just runs whichever of the two you did last.
 
 services:
   postgres:
@@ -45,6 +59,11 @@ services:
       retries: 15
 
   dispatch-api:
+    # Published by ci.yml's `publish-images` job on every push to main —
+    # this is the same fully-optimized `runtime` build CI already tested,
+    # for both amd64 and arm64. `docker compose pull` fetches it directly,
+    # no local Rust compilation needed.
+    image: ghcr.io/jupiterbarua/velocity-dispatch/dispatch-api:latest
     build:
       context: .
       dockerfile: services/dispatch-api/Dockerfile
@@ -72,6 +91,8 @@ services:
       retries: 10
 
   dispatch-worker:
+    # See the matching comment on dispatch-api's image above.
+    image: ghcr.io/jupiterbarua/velocity-dispatch/dispatch-worker:latest
     build:
       context: .
       dockerfile: services/dispatch-worker/Dockerfile

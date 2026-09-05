@@ -36,11 +36,11 @@ pub fn haversine_km(a: GeoPoint, b: GeoPoint) -> f64 {
 /// candidate slice — callers are expected to have already narrowed the
 /// candidate set down to one dispatch region (e.g. via a DB query), not to
 /// pass in every driver in the fleet.
-pub fn nearest_driver(
+pub fn nearest_driver<'a>(
     pickup: GeoPoint,
-    candidates: &[Driver],
+    candidates: &'a [Driver],
     radius_km: u32,
-) -> Result<(&Driver, f64), CoreError> {
+) -> Result<(&'a Driver, f64), CoreError> {
     candidates
         .iter()
         .filter(|d| d.status == DriverStatus::Available)
@@ -89,7 +89,7 @@ mod tests {
         let drivers = vec![
             driver(53.5511, 9.9937, DriverStatus::Available), // Hamburg, far
             driver(52.5300, 13.4100, DriverStatus::Available), // ~1.2km away, close
-            driver(52.5250, 13.4080, DriverStatus::Busy),     // closer but busy
+            driver(52.5250, 13.4080, DriverStatus::Busy),      // closer but busy
         ];
 
         let (nearest, dist) = nearest_driver(pickup, &drivers, 50).unwrap();
@@ -102,10 +102,7 @@ mod tests {
         let pickup = GeoPoint::new(52.5200, 13.4050).unwrap();
         let drivers = vec![driver(53.5511, 9.9937, DriverStatus::Available)]; // ~255km away
         let result = nearest_driver(pickup, &drivers, 10);
-        assert_eq!(
-            result.unwrap_err(),
-            CoreError::NoDriverInRange { radius_km: 10 }
-        );
+        assert_eq!(result.unwrap_err(), CoreError::NoDriverInRange { radius_km: 10 });
     }
 
     #[test]

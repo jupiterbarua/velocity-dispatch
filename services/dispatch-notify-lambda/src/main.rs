@@ -44,7 +44,9 @@ async fn main() -> Result<(), Error> {
         let sns_client = sns_client.clone();
         let audit_bucket = audit_bucket.clone();
         let notify_topic_arn = notify_topic_arn.clone();
-        async move { handle_event(event, s3_client, sns_client, audit_bucket, notify_topic_arn).await }
+        async move {
+            handle_event(event, s3_client, sns_client, audit_bucket, notify_topic_arn).await
+        }
     };
 
     lambda_runtime::run(service_fn(handler)).await
@@ -67,8 +69,7 @@ async fn handle_event(
         "processing DispatchAssigned event"
     );
 
-    notify::send_assignment_notification(&sns_client, notify_topic_arn.as_deref(), &assigned)
-        .await?;
+    notify::send_assignment_notification(&sns_client, notify_topic_arn.as_deref(), &assigned).await?;
     audit::write_audit_record(&s3_client, audit_bucket.as_deref(), &assigned).await?;
 
     Ok(json!({ "assignmentId": assigned.assignment_id, "status": "processed" }))

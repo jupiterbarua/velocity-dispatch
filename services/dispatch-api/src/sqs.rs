@@ -1,6 +1,8 @@
 use aws_sdk_sqs::Client as SqsClient;
 use dispatch_core::OrderCreated;
 
+use crate::error::SqsSendError;
+
 /// Thin wrapper around the SQS client so handlers depend on this narrow
 /// interface rather than the full AWS SDK surface — makes it trivial to
 /// swap in a fake for handler unit tests later without pulling in
@@ -16,13 +18,7 @@ impl OrderEventPublisher {
         Self { client, queue_url }
     }
 
-    pub async fn publish(
-        &self,
-        event: &OrderCreated,
-    ) -> Result<
-        (),
-        aws_sdk_sqs::error::SdkError<aws_sdk_sqs::operation::send_message::SendMessageError>,
-    > {
+    pub async fn publish(&self, event: &OrderCreated) -> Result<(), SqsSendError> {
         let body = serde_json::to_string(event).expect("OrderCreated is always serializable");
 
         self.client

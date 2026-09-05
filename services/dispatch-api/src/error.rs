@@ -2,6 +2,12 @@ use actix_web::{http::StatusCode, HttpResponse, ResponseError};
 use serde::Serialize;
 use thiserror::Error;
 
+/// Alias so this doesn't force an unreadable, rustfmt-wrapped generic onto
+/// one line (or several) wherever it's used — here and in `sqs.rs`'s
+/// `publish` signature, which returns exactly this type.
+pub(crate) type SqsSendError =
+    aws_sdk_sqs::error::SdkError<aws_sdk_sqs::operation::send_message::SendMessageError>;
+
 #[derive(Debug, Error)]
 pub enum ApiError {
     #[error(transparent)]
@@ -10,17 +16,8 @@ pub enum ApiError {
     #[error("database error")]
     Database(#[from] sqlx::Error),
 
-    // Boxed because this SdkError is ~368 bytes on its own, against 40 for
-    // the next-largest variant — unboxed it sets the size of every ApiError
-    // returned from every handler, including the common ones. Cheap here
-    // because nothing `?`-converts into this variant: the sole publish call
-    // site logs the error instead of propagating it (see routes.rs), so the
-    // generated `From` never runs on a hot path.
     #[error("event publish error")]
-    Publish(
-        #[from]
-        Box<aws_sdk_sqs::error::SdkError<aws_sdk_sqs::operation::send_message::SendMessageError>>,
-    ),
+    Publish(#[from] Box<SqsSendError>),
 
     #[error("resource not found")]
     NotFound,

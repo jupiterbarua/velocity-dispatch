@@ -10,11 +10,6 @@ pub fn init() {
 
     tracing_subscriber::registry()
         .with(filter)
-        .with(
-            fmt::layer()
-                .json()
-                .with_target(true)
-                .with_current_span(true),
-        )
+        .with(fmt::layer().json().with_target(true).with_current_span(true))
         .init();
 }

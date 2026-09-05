@@ -59,11 +59,7 @@ pub struct OrderResponse {
 
 impl From<Order> for OrderResponse {
     fn from(o: Order) -> Self {
-        Self {
-            id: o.id,
-            status: o.status,
-            created_at: o.created_at,
-        }
+        Self { id: o.id, status: o.status, created_at: o.created_at }
     }
 }
 
@@ -142,14 +138,7 @@ pub async fn register_driver(
 ) -> Result<HttpResponse, ApiError> {
     let location = GeoPoint::new(body.location.lat, body.location.lon)?;
     let id = body.id.unwrap_or_else(Uuid::new_v4);
-    let driver = crate::db::upsert_driver(
-        &state.pool,
-        id,
-        &body.name,
-        location,
-        DriverStatus::Available,
-    )
-    .await?;
+    let driver = crate::db::upsert_driver(&state.pool, id, &body.name, location, DriverStatus::Available).await?;
     Ok(HttpResponse::Created().json(driver))
 }
 
@@ -171,8 +160,7 @@ pub async fn update_driver_location(
         Some("offline") => DriverStatus::Offline,
         _ => DriverStatus::Available,
     };
-    let driver =
-        crate::db::upsert_driver(&state.pool, path.into_inner(), "", location, status).await?;
+    let driver = crate::db::upsert_driver(&state.pool, path.into_inner(), "", location, status).await?;
     Ok(HttpResponse::Ok().json(driver))
 }
 

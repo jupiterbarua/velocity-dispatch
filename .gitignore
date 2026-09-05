@@ -7,4 +7,3 @@
 .terraform.lock.hcl
 crash.log
 *.pem
-CLAUDE.md

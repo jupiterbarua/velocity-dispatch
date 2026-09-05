@@ -31,14 +31,3 @@ lto = true
 codegen-units = 1
 panic = "abort"
 strip = true
-
-# Dependencies only (the `"*"` glob excludes this workspace's own crates, which
-# keep the default `[profile.dev]` `debug = 2`). A debug build of this graph is
-# 433 crates, and emitting full DWARF for all of them dominates both codegen
-# time and target-dir size — which bites hardest inside a CPU- and
-# memory-limited Docker VM, where `docker compose up --build` runs. Line tables
-# are enough to keep backtraces readable (file + line, no variable inspection),
-# and stepping through AWS SDK internals in a debugger is not something local
-# dev on this project actually does.
-[profile.dev.package."*"]
-debug = "line-tables-only"

@@ -82,6 +82,64 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+  # Not every machine that wants to run this project locally can afford to
+  # compile it — the Rust + AWS SDK dependency graph is genuinely heavy, and
+  # `docker compose up --build` on an old/low-power laptop can take far
+  # longer than it's worth for local testing. Rather than asking developers
+  # to build on their own machines, CI publishes the already-tested `runtime`
+  # image here to GitHub Container Registry (GHCR) on every push to `main`,
+  # using the repo's own built-in GITHUB_TOKEN — no AWS credentials, no new
+  # secrets. `docker-compose.yml` references these images directly, so
+  # `docker compose pull` + `docker compose up` needs no local compilation at
+  # all. This is separate from `deploy.yml`'s push to ECR: GHCR here is for
+  # "pull and run it locally," ECR there is for "this is what's actually
+  # running in AWS" — different registries for different audiences.
+  publish-images:
+    name: publish images to GHCR
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+    # Only for real pushes to main, not PRs — a PR from a fork wouldn't have
+    # package-write permission anyway, and a portfolio repo's "latest"
+    # image should track main, not someone's in-review branch.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        service: [dispatch-api, dispatch-worker, dispatch-notify-lambda]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push ${{ matrix.service }}
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: services/${{ matrix.service }}/Dockerfile
+          target: runtime
+          # Both architectures: GitHub's runners are amd64, but buildx
+          # cross-compiles the arm64 variant too (via QEMU) so the same
+          # `docker pull` works whether you're on an Intel Mac, an Apple
+          # Silicon Mac, or an amd64 Linux box — nobody pulling this image
+          # needs to know or care which.
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}/${{ matrix.service }}:latest
+            ghcr.io/${{ github.repository }}/${{ matrix.service }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
   # Runs on every PR/push for fast feedback; the push-to-ECR + deploy step is
   # intentionally a separate, manually-triggered workflow
   # (.github/workflows/deploy.yml) rather than automatic-on-merge — a

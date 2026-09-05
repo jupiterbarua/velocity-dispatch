@@ -89,8 +89,18 @@ docs/SPRINT_LOG.md            Week-by-week agile build log: scope, decisions, ba
 
 ## Running it locally
 
+The Rust + AWS SDK dependency graph is genuinely heavy to compile — building from source wants a reasonably capable machine. If yours isn't (an old laptop, limited RAM), skip building entirely and pull the images CI already built and tested:
+
 ```bash
 cp .env.example .env   # optional — the defaults already point at the compose services
+docker compose pull dispatch-api dispatch-worker
+docker compose up
+```
+
+If you'd rather build from source (e.g. you're actively changing the Rust code):
+
+```bash
+cp .env.example .env
 docker compose up --build
 
 # in another terminal, once everything's healthy:

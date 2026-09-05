@@ -49,14 +49,8 @@ impl From<OrderRow> for Order {
     fn from(r: OrderRow) -> Self {
         Order {
             id: r.id,
-            pickup: GeoPoint {
-                lat: r.pickup_lat,
-                lon: r.pickup_lon,
-            },
-            dropoff: GeoPoint {
-                lat: r.dropoff_lat,
-                lon: r.dropoff_lon,
-            },
+            pickup: GeoPoint { lat: r.pickup_lat, lon: r.pickup_lon },
+            dropoff: GeoPoint { lat: r.dropoff_lat, lon: r.dropoff_lon },
             status: parse_order_status(&r.status),
             created_at: r.created_at,
         }
@@ -118,10 +112,7 @@ impl From<DriverRow> for Driver {
         Driver {
             id: r.id,
             name: r.name,
-            location: GeoPoint {
-                lat: r.lat,
-                lon: r.lon,
-            },
+            location: GeoPoint { lat: r.lat, lon: r.lon },
             status: match r.status.as_str() {
                 "busy" => DriverStatus::Busy,
                 "offline" => DriverStatus::Offline,
