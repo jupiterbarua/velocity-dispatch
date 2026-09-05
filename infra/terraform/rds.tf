@@ -12,9 +12,9 @@ resource "aws_db_instance" "dispatch" {
   # right-sized for a portfolio deploy, not for real order volume. The
   # README's load-test section documents how to read pg connection/CPU
   # metrics to decide when this actually needs to grow.
-  instance_class        = "db.t4g.micro"
-  allocated_storage     = 20
-  storage_type           = "gp3"
+  instance_class    = "db.t4g.micro"
+  allocated_storage = 20
+  storage_type      = "gp3"
 
   db_name  = "dispatch"
   username = var.db_username

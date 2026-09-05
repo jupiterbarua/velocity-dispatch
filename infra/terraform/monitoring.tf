@@ -61,10 +61,10 @@ resource "aws_cloudwatch_metric_alarm" "dlq_not_empty" {
 # pure latency/error-rate alarm can miss if the ALB is still routing to a
 # shrinking healthy pool.
 resource "aws_cloudwatch_metric_alarm" "api_running_below_desired" {
-  alarm_name          = "velocity-dispatch-api-tasks-below-desired-${var.environment}"
-  alarm_description   = "dispatch-api has fewer running tasks than desired_count for 2 consecutive minutes"
-  namespace           = "ECS/ContainerInsights"
-  metric_name         = "RunningTaskCount"
+  alarm_name        = "velocity-dispatch-api-tasks-below-desired-${var.environment}"
+  alarm_description = "dispatch-api has fewer running tasks than desired_count for 2 consecutive minutes"
+  namespace         = "ECS/ContainerInsights"
+  metric_name       = "RunningTaskCount"
   dimensions = {
     ClusterName = aws_ecs_cluster.dispatch.name
     ServiceName = aws_ecs_service.api.name
@@ -82,10 +82,10 @@ resource "aws_cloudwatch_metric_alarm" "api_running_below_desired" {
 
 # --- ALB: elevated 5xx rate from dispatch-api ---------------------------
 resource "aws_cloudwatch_metric_alarm" "api_5xx_rate" {
-  alarm_name          = "velocity-dispatch-api-5xx-${var.environment}"
-  alarm_description   = "dispatch-api target group returned 10+ HTTP 5xx responses in a 1-minute window"
-  namespace           = "AWS/ApplicationELB"
-  metric_name         = "HTTPCode_Target_5XX_Count"
+  alarm_name        = "velocity-dispatch-api-5xx-${var.environment}"
+  alarm_description = "dispatch-api target group returned 10+ HTTP 5xx responses in a 1-minute window"
+  namespace         = "AWS/ApplicationELB"
+  metric_name       = "HTTPCode_Target_5XX_Count"
   dimensions = {
     LoadBalancer = aws_lb.api.arn_suffix
     TargetGroup  = aws_lb_target_group.api.arn_suffix

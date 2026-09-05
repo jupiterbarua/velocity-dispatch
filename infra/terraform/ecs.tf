@@ -134,8 +134,8 @@ resource "aws_ecs_service" "api" {
 
   load_balancer {
     target_group_arn = aws_lb_target_group.api.arn
-    container_name    = "dispatch-api"
-    container_port    = 8080
+    container_name   = "dispatch-api"
+    container_port   = 8080
   }
 
   # Zero-downtime rolling deploys: ECS starts new tasks and waits for them to

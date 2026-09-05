@@ -15,7 +15,7 @@ WORKDIR /app
 
 FROM chef AS planner
 COPY . .
-RUN cargo chef prepare --recipe-path recipe.json --bin bootstrap -p dispatch-notify-lambda
+RUN cargo chef prepare --recipe-path recipe.json --bin bootstrap
 
 FROM chef AS builder
 COPY --from=planner /app/recipe.json recipe.json

@@ -55,9 +55,9 @@ resource "aws_cloudwatch_dashboard" "main" {
       {
         type = "metric", x = 0, y = 7, width = 12, height = 6
         properties = {
-          title  = "Match outcomes by type"
-          region = var.aws_region
-          view   = "timeSeries"
+          title   = "Match outcomes by type"
+          region  = var.aws_region
+          view    = "timeSeries"
           stacked = true
           metrics = [
             [{ expression = "SEARCH('{VelocityDispatch/Worker,Environment,Outcome} MetricName=\"MatchCount\" Environment=\"${var.environment}\"', 'Sum', 60)", label = "MatchCount by Outcome", id = "e1" }]
