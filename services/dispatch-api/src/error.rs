@@ -4,9 +4,14 @@ use thiserror::Error;
 
 /// Alias so this doesn't force an unreadable, rustfmt-wrapped generic onto
 /// one line (or several) wherever it's used — here and in `sqs.rs`'s
-/// `publish` signature, which returns exactly this type.
+/// `publish` signature, which returns exactly this type. Boxed because
+/// clippy's `result_large_err` flags the raw `SdkError` (it embeds a full
+/// HTTP response and is ~368 bytes) as too large to return by value in a
+/// `Result` — boxing moves that payload onto the heap so `Result<(), _>`
+/// itself stays small. `Box<T>` gets `From<T>` for free from the standard
+/// library, so the `?` operator in `sqs.rs::publish` still works unchanged.
 pub(crate) type SqsSendError =
-    aws_sdk_sqs::error::SdkError<aws_sdk_sqs::operation::send_message::SendMessageError>;
+    Box<aws_sdk_sqs::error::SdkError<aws_sdk_sqs::operation::send_message::SendMessageError>>;
 
 #[derive(Debug, Error)]
 pub enum ApiError {
