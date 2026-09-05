@@ -17,7 +17,7 @@ pub enum ApiError {
     Database(#[from] sqlx::Error),
 
     #[error("event publish error")]
-    Publish(#[from] Box<SqsSendError>),
+    Publish(#[from] SqsSendError),
 
     #[error("resource not found")]
     NotFound,
