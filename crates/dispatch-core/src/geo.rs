@@ -36,11 +36,11 @@ pub fn haversine_km(a: GeoPoint, b: GeoPoint) -> f64 {
 /// candidate slice — callers are expected to have already narrowed the
 /// candidate set down to one dispatch region (e.g. via a DB query), not to
 /// pass in every driver in the fleet.
-pub fn nearest_driver<'a>(
+pub fn nearest_driver(
     pickup: GeoPoint,
-    candidates: &'a [Driver],
+    candidates: &[Driver],
     radius_km: u32,
-) -> Result<(&'a Driver, f64), CoreError> {
+) -> Result<(&Driver, f64), CoreError> {
     candidates
         .iter()
         .filter(|d| d.status == DriverStatus::Available)
