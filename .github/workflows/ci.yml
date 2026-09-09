@@ -79,8 +79,10 @@ jobs:
           target: runtime
           push: false
           tags: velocity-dispatch/${{ matrix.service }}:ci
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # cache-from: type=gha
+          # cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
 
   # Not every machine that wants to run this project locally can afford to
   # compile it — the Rust + AWS SDK dependency graph is genuinely heavy, and

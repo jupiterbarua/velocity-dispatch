@@ -16,7 +16,13 @@
 # Docker host across builds and across stages, so that download/compile
 # cost is paid once, not every time `docker compose up --build` runs.
 
-FROM lukemathwalker/cargo-chef:latest-rust-1 AS chef
+# Pinned to the `-bookworm` variant (not the bare `latest-rust-1`) so the
+# builder's glibc matches the `debian:bookworm-slim` runtime/dev bases below.
+# The unpinned tag floats onto whatever Debian codename upstream `rust`
+# images currently default to (it moved to trixie's glibc 2.39), which
+# produces a binary the bookworm-slim runtime can't load:
+# `/lib/x86_64-linux-gnu/libc.so.6: version 'GLIBC_2.39' not found`.
+FROM lukemathwalker/cargo-chef:latest-rust-1-bookworm AS chef
 WORKDIR /app
 
 FROM chef AS planner
