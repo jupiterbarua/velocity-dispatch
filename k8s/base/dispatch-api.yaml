@@ -1,0 +1,153 @@
+# dispatch-api — the low-latency HTTP front door (see routes.rs / README's
+# "Low-latency decisions"). 2 replicas by default: this is also the
+# smallest possible demonstration that the service is actually stateless
+# and horizontally scalable, which is the whole point of handing matching
+# off to dispatch-worker asynchronously instead of doing it inline.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dispatch-api
+  namespace: velocity-dispatch
+  labels:
+    app: dispatch-api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: dispatch-api
+  # Mirrors ecs.tf's deployment_minimum_healthy_percent=100 /
+  # maximum_percent=200 comment: never drop below current capacity during a
+  # rollout, and allow up to double while the new ReplicaSet spins up
+  # alongside the old one.
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 2
+  template:
+    metadata:
+      labels:
+        app: dispatch-api
+    spec:
+      # Same problem docker-compose's `depends_on: condition: service_healthy`
+      # solves, solved the k8s way — k8s only has "pod started" ordering, not
+      # "pod is actually ready to answer queries" ordering, so a plain
+      # Deployment would let dispatch-api's container start racing Postgres'
+      # startup and crash-loop on the first DB connection attempt instead of
+      # blocking, once, before that ever happens. Each init container must
+      # exit 0 before the main container starts; both use a plain busybox
+      # image so this adds no new image to build or maintain.
+      initContainers:
+        - name: wait-for-postgres
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              until nc -z postgres 5432; do
+                echo "waiting for postgres..."; sleep 2;
+              done
+        - name: wait-for-localstack
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              until wget -q -O- http://localstack:4566/_localstack/health >/dev/null 2>&1; do
+                echo "waiting for localstack..."; sleep 2;
+              done
+      containers:
+        - name: dispatch-api
+          # Same public, multi-arch (amd64+arm64) image CI publishes to
+          # GHCR on every push to main — see ci.yml's publish-images job.
+          # Nothing here builds from source; this is the "run the tested
+          # artifact" path, same as `docker compose pull`.
+          image: ghcr.io/jupiterbarua/velocity-dispatch/dispatch-api:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+              name: http
+          envFrom:
+            - configMapRef:
+                name: dispatch-config
+            - secretRef:
+                name: dispatch-secrets
+          # /health actually queries Postgres (see routes.rs's comment on
+          # why) — reusing it for both probes means readiness and liveness
+          # track real dependency health, not just "the process is alive."
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 5
+          # Deliberately low requests — this is meant to run on a 2015
+          # dual-core laptop next to Postgres, LocalStack and
+          # dispatch-worker all at once. Bump these before treating the
+          # numbers as a production sizing recommendation.
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              memory: 256Mi
+---
+# NodePort rather than ClusterIP: the point of this Service, for a local
+# single-node cluster, is "curl it from your Mac's terminal without an
+# extra kubectl port-forward process running." A NodePort is reachable at
+# <node-ip>:30080 directly; k3d additionally lets you map that node port to
+# localhost at cluster-create time (see k8s/README.md), which is what makes
+# `curl localhost:8080/health` work the same way it did against
+# docker-compose. On a real cluster (EKS) you'd swap this for a
+# ClusterIP + Ingress/ALB instead — NodePort doesn't belong in production.
+apiVersion: v1
+kind: Service
+metadata:
+  name: dispatch-api
+  namespace: velocity-dispatch
+spec:
+  type: NodePort
+  selector:
+    app: dispatch-api
+  ports:
+    - port: 8080
+      targetPort: 8080
+      nodePort: 30080
+      name: http
+---
+# Horizontal Pod Autoscaler — requires the metrics-server addon (see
+# k8s/README.md). Scales purely on CPU here since that's the cheapest
+# signal to demonstrate; a real low-latency HTTP service would more likely
+# scale on request latency or in-flight requests via a custom/external
+# metric (e.g. via KEDA or Prometheus Adapter), which is worth saying out
+# loud as the "if I had more time" answer rather than pretending
+# CPU-based scaling is the final word here.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: dispatch-api
+  namespace: velocity-dispatch
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: dispatch-api
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70

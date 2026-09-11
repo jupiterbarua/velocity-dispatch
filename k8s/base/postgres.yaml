@@ -1,0 +1,106 @@
+# Postgres as a StatefulSet, not a Deployment — the thing docker-compose's
+# `postgres:` service glosses over by just naming a volume. A Deployment
+# gives you no stable identity and, on RollingUpdate, can briefly run two
+# pods against the same PVC; a StatefulSet gives this pod a stable name
+# (postgres-0), a stable DNS name via the headless Service below, and one
+# PVC per replica created from volumeClaimTemplates — which is what makes
+# "the database's disk survives a pod restart" actually true here instead
+# of just assumed. Single replica: this is a demo/dev database, not a
+# citus/patroni cluster — real HA Postgres is a separate rabbit hole from
+# "learn core k8s primitives," which is what this manifest set is for.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: velocity-dispatch
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+              name: postgres
+          env:
+            - name: POSTGRES_USER
+              value: "dispatch"
+            - name: POSTGRES_PASSWORD
+              value: "dispatch"
+            - name: POSTGRES_DB
+              value: "dispatch"
+            # Without this, postgres writes into the volume's lost+found-
+            # containing root and refuses to start ("data directory has
+            # wrong ownership" / "not empty") the first time a PVC is
+            # backed by certain storage classes. Cheap to set, annoying to
+            # debug if you don't.
+            - name: PGDATA
+              value: "/var/lib/postgresql/data/pgdata"
+          volumeMounts:
+            - name: pgdata
+              mountPath: /var/lib/postgresql/data
+          # Same probe docker-compose's healthcheck ran — reused here so
+          # `kubectl get pods` reports NotReady (and the api/worker init
+          # containers, which poll this exact way, keep waiting) instead of
+          # Running-but-actually-still-initializing.
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "dispatch"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 10
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "dispatch"]
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              memory: 512Mi
+  volumeClaimTemplates:
+    - metadata:
+        name: pgdata
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            # Plenty for a demo dataset; bump if you seed it heavily via
+            # scripts/seed.sh.
+            storage: 1Gi
+---
+# Headless (clusterIP: None) on purpose: a normal ClusterIP Service would
+# load-balance across replicas, which is meaningless for a single-member
+# StatefulSet and actively wrong once you ever run a real multi-node
+# Postgres, where clients need to reach a *specific* member (the primary),
+# not a random one. Headless gives each pod its own DNS record
+# (postgres-0.postgres.velocity-dispatch.svc.cluster.local) instead.
+# dispatch-api/dispatch-worker's DATABASE_URL below just uses the Service
+# name `postgres`, which resolves to that one pod's IP directly for a
+# single-replica StatefulSet like this one.
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: velocity-dispatch
+spec:
+  clusterIP: None
+  selector:
+    app: postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+      name: postgres

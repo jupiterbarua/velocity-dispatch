@@ -1,0 +1,36 @@
+# Non-secret runtime config, shared by dispatch-api and dispatch-worker —
+# the Kubernetes equivalent of docker-compose.yml's `environment:` blocks
+# plus .env.example. Anything a human could read over your shoulder without
+# learning something they could abuse goes here; actual credentials go in
+# secret.yaml instead. Both Deployments pull this in wholesale via
+# `envFrom.configMapRef` (see dispatch-api.yaml / dispatch-worker.yaml)
+# rather than listing each key individually — same rationale as the
+# services' own `Config::from_env()`: one place to see everything a
+# service needs to run.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dispatch-config
+  namespace: velocity-dispatch
+data:
+  # Points at the in-cluster LocalStack service (see localstack.yaml) —
+  # LocalStack stands in for SQS/EventBridge/S3/SNS here the same way it
+  # does in docker-compose, so this manifest set never touches a real AWS
+  # account or costs anything to run.
+  AWS_ENDPOINT_URL: "http://localstack:4566"
+  AWS_DEFAULT_REGION: "eu-central-1"
+  SQS_ORDER_QUEUE_URL: "http://localstack:4566/000000000000/order-created"
+  EVENT_BUS_NAME: "velocity-dispatch-bus"
+  AUDIT_BUCKET: "velocity-dispatch-audit"
+  NOTIFY_TOPIC_ARN: ""
+  MATCH_RADIUS_KM: "15"
+  MAX_IN_FLIGHT: "20"
+  DB_MAX_CONNECTIONS: "20"
+  BIND_ADDR: "0.0.0.0:8080"
+  # Distinguishes this deployment target from docker-compose's default
+  # ("local") in every EMF metric dimension (see
+  # services/dispatch-worker/src/metrics.rs) and in dispatch-api's tracing
+  # output — handy once you're looking at logs from more than one place at
+  # once.
+  ENVIRONMENT: "k8s-local"
+  RUST_LOG: "info"

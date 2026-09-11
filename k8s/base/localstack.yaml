@@ -1,0 +1,133 @@
+# LocalStack in-cluster — same role it plays in docker-compose.yml: a fake
+# SQS/EventBridge/S3/SNS so dispatch-api/dispatch-worker exercise the real
+# event pipeline (SQS -> worker -> EventBridge -> Lambda) without an AWS
+# account, real credentials, or any cost. The init script is byte-for-byte
+# infra/localstack/init-aws.sh, just moved into a ConfigMap since k8s has
+# no bind-mount equivalent to compose's
+# `./infra/localstack/init-aws.sh:/etc/localstack/init/ready.d/init-aws.sh`
+# — a ConfigMap volume is the k8s way to get a host file's contents into a
+# pod. Keeping this script's content identical to the one in
+# infra/localstack/ (rather than diverging) means "how does LocalStack get
+# provisioned" only has to be explained once.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: localstack-init
+  namespace: velocity-dispatch
+data:
+  init-aws.sh: |
+    #!/usr/bin/env bash
+    # Runs automatically by LocalStack on container start (mounted into
+    # /etc/localstack/init/ready.d/). Provisions the same primitives that
+    # infra/terraform provisions against real AWS, so this cluster gives
+    # you the full event pipeline without an AWS account or any cost.
+    # Kept in lockstep with infra/localstack/init-aws.sh — see that file
+    # for the docker-compose equivalent of this same script.
+    set -euo pipefail
+
+    export AWS_ACCESS_KEY_ID=test
+    export AWS_SECRET_ACCESS_KEY=test
+    export AWS_DEFAULT_REGION=eu-central-1
+
+    echo "[localstack-init] creating SQS dead-letter queue + main queue"
+    dlq_arn=$(awslocal sqs create-queue --queue-name order-created-dlq --query 'QueueUrl' --output text)
+    dlq_arn=$(awslocal sqs get-queue-attributes --queue-url "$dlq_arn" --attribute-names QueueArn --query 'Attributes.QueueArn' --output text)
+
+    redrive_policy=$(printf '{"deadLetterTargetArn":"%s","maxReceiveCount":5}' "$dlq_arn")
+    awslocal sqs create-queue --queue-name order-created \
+      --attributes "RedrivePolicy='${redrive_policy//\"/\\\"}'" >/dev/null || \
+      awslocal sqs create-queue --queue-name order-created >/dev/null
+
+    echo "[localstack-init] creating EventBridge custom bus + rule"
+    awslocal events create-event-bus --name velocity-dispatch-bus >/dev/null || true
+
+    awslocal events put-rule \
+      --name dispatch-assigned-rule \
+      --event-bus-name velocity-dispatch-bus \
+      --event-pattern '{"source":["velocity.dispatch"],"detail-type":["DispatchAssigned"]}' >/dev/null
+
+    echo "[localstack-init] creating S3 audit bucket + SNS notification topic"
+    awslocal s3 mb s3://velocity-dispatch-audit >/dev/null || true
+    awslocal sns create-topic --name velocity-dispatch-notifications >/dev/null || true
+
+    echo "[localstack-init] done — queue/bus/rule/bucket/topic ready"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: localstack
+  namespace: velocity-dispatch
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: localstack
+  template:
+    metadata:
+      labels:
+        app: localstack
+    spec:
+      containers:
+        - name: localstack
+          image: localstack/localstack:3
+          ports:
+            - containerPort: 4566
+              name: edge
+          env:
+            - name: SERVICES
+              value: "sqs,events,s3,sns,lambda"
+            - name: DEFAULT_REGION
+              value: "eu-central-1"
+            - name: DEBUG
+              value: "0"
+          volumeMounts:
+            - name: init-script
+              # defaultMode 0755 below is what makes LocalStack actually
+              # execute this — a ConfigMap volume mounts files 0644 by
+              # default, which ready.d silently skips.
+              mountPath: /etc/localstack/init/ready.d/init-aws.sh
+              subPath: init-aws.sh
+            - name: localstack-data
+              mountPath: /var/lib/localstack
+          readinessProbe:
+            httpGet:
+              path: /_localstack/health
+              port: 4566
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 15
+          livenessProbe:
+            httpGet:
+              path: /_localstack/health
+              port: 4566
+            initialDelaySeconds: 20
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 6
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 768Mi
+      volumes:
+        - name: init-script
+          configMap:
+            name: localstack-init
+            defaultMode: 0755
+        - name: localstack-data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: localstack
+  namespace: velocity-dispatch
+spec:
+  selector:
+    app: localstack
+  ports:
+    - port: 4566
+      targetPort: 4566
+      name: edge

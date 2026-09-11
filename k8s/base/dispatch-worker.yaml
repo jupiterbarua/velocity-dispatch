@@ -1,0 +1,97 @@
+# dispatch-worker — long-running SQS consumer, no HTTP surface at all (see
+# docker-compose.yml's comment: it deliberately has no `ports:` either).
+# That absence carries through here: no Service, no readiness/liveness
+# HTTP probe, because there is nothing to probe. The debian:bookworm-slim
+# runtime image also has no `pgrep`/`ps` (only ca-certificates is
+# installed — see the Dockerfile), so an exec-based process-liveness probe
+# would mean adding procps to the image just to satisfy k8s, which isn't a
+# trade worth making. k8s' baseline behavior — restart the container if its
+# process exits non-zero — is the actual liveness signal here, same as it
+# would be for a plain `systemd`-managed process.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dispatch-worker
+  namespace: velocity-dispatch
+  labels:
+    app: dispatch-worker
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: dispatch-worker
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app: dispatch-worker
+    spec:
+      initContainers:
+        - name: wait-for-postgres
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              until nc -z postgres 5432; do
+                echo "waiting for postgres..."; sleep 2;
+              done
+        - name: wait-for-localstack
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              until wget -q -O- http://localstack:4566/_localstack/health >/dev/null 2>&1; do
+                echo "waiting for localstack..."; sleep 2;
+              done
+      containers:
+        - name: dispatch-worker
+          image: ghcr.io/jupiterbarua/velocity-dispatch/dispatch-worker:latest
+          imagePullPolicy: Always
+          envFrom:
+            - configMapRef:
+                name: dispatch-config
+            - secretRef:
+                name: dispatch-secrets
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              memory: 256Mi
+---
+# CPU-based HPA, same caveat as dispatch-api's: the metric that actually
+# matters for a queue consumer is backlog depth
+# (ApproximateNumberOfMessagesVisible on the order-created SQS queue), not
+# CPU. Scaling a queue worker on CPU means it only scales up once it's
+# already busy processing a backlog that's built up — by then the metric
+# you actually care about (time-to-dispatch) has already suffered. The
+# correct production version of this is KEDA's aws-sqs-queue scaler, which
+# reads queue depth directly and can scale from/to zero. Left as CPU-based
+# here to keep this manifest set dependency-free (no KEDA CRDs to install
+# first) — flagging the gap explicitly rather than silently settling for
+# the easy metric.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: dispatch-worker
+  namespace: velocity-dispatch
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: dispatch-worker
+  minReplicas: 2
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70

@@ -1,0 +1,20 @@
+# Plain `kubectl apply -f k8s/base/` also works (kubectl applies files in
+# alphabetical order, and nothing here has a same-apply ordering
+# dependency — Services/Deployments/HPAs referencing objects that don't
+# exist yet just sit unready until they do). This kustomization exists so
+# `kubectl apply -k k8s/base/` also works as a single command, and as the
+# natural place to layer a future overlay (e.g. k8s/overlays/eks/ that
+# swaps the NodePort Services for an Ingress + ALB, drops LocalStack
+# entirely, and points DATABASE_URL at real RDS) without touching these
+# base files.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: velocity-dispatch
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - secret.yaml
+  - postgres.yaml
+  - localstack.yaml
+  - dispatch-api.yaml
+  - dispatch-worker.yaml
