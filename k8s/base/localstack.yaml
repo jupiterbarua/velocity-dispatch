@@ -69,7 +69,15 @@ spec:
     spec:
       containers:
         - name: localstack
-          image: localstack/localstack:3
+          # Pinned to 4.14.0, not the floating `:3` tag — see the matching
+          # comment in docker-compose.yml. LocalStack archived its GitHub
+          # repo on 2026-03-23 and every image built after that date
+          # requires a LOCALSTACK_AUTH_TOKEN; it still starts and passes
+          # /_localstack/health without one, but real API calls (like this
+          # deployment's SQS ReceiveMessage) come back as garbled
+          # 500 InternalError responses. 4.14.0 (2025-02-26) is the last
+          # free, unauthenticated release.
+          image: localstack/localstack:4.14.0
           ports:
             - containerPort: 4566
               name: edge

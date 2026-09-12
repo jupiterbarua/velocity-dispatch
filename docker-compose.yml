@@ -42,7 +42,18 @@ services:
       retries: 10
 
   localstack:
-    image: localstack/localstack:3
+    # Pinned to 4.14.0 deliberately, NOT the floating `:3` tag. LocalStack
+    # archived its GitHub repo on 2026-03-23 and moved every image built
+    # after that date behind a required LOCALSTACK_AUTH_TOKEN — a `:3` pull
+    # today silently resolves to one of those post-archive builds, which
+    # start fine (health check passes) but return broken/garbled responses
+    # on real API calls without a token — exactly the "500 InternalError /
+    # Expecting property name enclosed in double quotes" failures this
+    # queue was hitting. 4.14.0 (2025-02-26) is the last free, unauthenticated
+    # release before the archive, so it's the newest tag guaranteed to keep
+    # working with no account. See infra/terraform-ec2-k3s/README.md for
+    # the fuller writeup.
+    image: localstack/localstack:4.14.0
     environment:
       SERVICES: sqs,events,s3,sns,lambda
       DEFAULT_REGION: eu-central-1
