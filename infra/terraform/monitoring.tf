@@ -16,7 +16,7 @@ resource "aws_sns_topic" "ops_alerts" {
 # max_in_flight. Threshold of 100 visible messages sustained for 3
 # consecutive 1-minute periods is a starting point, not a law — tune it
 # against real traffic once there's a production baseline (see the
-# README's load-test section for how to establish one).
+# `docs/GETTING_STARTED.md`'s "Measuring latency" section for how to establish one).
 resource "aws_cloudwatch_metric_alarm" "queue_backlog" {
   alarm_name          = "velocity-dispatch-queue-backlog-${var.environment}"
   alarm_description   = "order-created queue has >100 visible messages for 3 consecutive minutes — dispatch-worker may be falling behind or down"

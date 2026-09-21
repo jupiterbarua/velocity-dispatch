@@ -77,7 +77,7 @@ resource "aws_iam_role" "github_actions_deploy" {
 # hundreds of lines and still drift out of sync every time a new resource
 # type is added — so this uses AWS managed policies scoped to *services*,
 # which is the pragmatic middle ground for a project this size. The
-# honest trade-off, stated for an interview: a real production setup would
+# honest trade-off: a real production setup would
 # either run `terraform plan` in CI and gate `apply` through a separate,
 # more tightly-scoped execution role (e.g. via Terraform Cloud/Atlantis),
 # or scope this down with resource-level conditions once the resource set

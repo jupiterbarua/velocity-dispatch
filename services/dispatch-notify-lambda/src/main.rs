@@ -8,7 +8,7 @@
 //! this side, and near-instant (typically sub-second, cold start aside)
 //! delivery from "driver matched" to "rider notified".
 //!
-//! Two things worth calling out for an interview: (1) Rust Lambdas on
+//! Two things worth calling out: (1) Rust Lambdas on
 //! `provided.al2` cold-start meaningfully faster than interpreted-runtime
 //! Lambdas (no VM/interpreter bootstrap, small static binary) — that matters
 //! here because this is on the critical path from assignment to

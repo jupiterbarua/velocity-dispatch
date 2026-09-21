@@ -3,9 +3,9 @@
 // Usage:
 //   k6 run -e BASE_URL=http://localhost:8080 loadtest/orders.js
 //
-// What to look at afterwards (and put in the README's results table):
-//   - http_req_duration p(95) / p(99)  — the tail latency claim this
-//     project is built to be able to defend in an interview.
+// What to look at afterwards:
+//   - http_req_duration p(95) / p(99)  — the tail latency this project
+//     is designed to keep low on the POST /orders hot path.
 //   - http_req_failed rate            — should be ~0%; a non-zero rate
 //     under load usually means the DB pool (see dispatch-api's
 //     `db_max_connections`) is undersized for the offered concurrency.

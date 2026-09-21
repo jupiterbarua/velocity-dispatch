@@ -89,14 +89,14 @@ resource "aws_lb" "api" {
   internal           = false
   load_balancer_type = "application"
   security_groups    = [aws_security_group.alb.id]
-  subnets            = data.aws_subnets.default.ids
+  subnets            = [aws_subnet.public_a.id, aws_subnet.public_b.id]
 }
 
 resource "aws_lb_target_group" "api" {
   name        = "velocity-dispatch-api-${var.environment}"
   port        = 8080
   protocol    = "HTTP"
-  vpc_id      = data.aws_vpc.default.id
+  vpc_id      = aws_vpc.main.id
   target_type = "ip"
 
   health_check {
@@ -127,9 +127,9 @@ resource "aws_ecs_service" "api" {
   launch_type     = "FARGATE"
 
   network_configuration {
-    subnets          = data.aws_subnets.default.ids
+    subnets          = [aws_subnet.private_a.id, aws_subnet.private_b.id]
     security_groups  = [aws_security_group.ecs_service.id]
-    assign_public_ip = true # default VPC subnets here are public; see network.tf note on production VPC layout
+    assign_public_ip = false # private subnet, reaches the internet (e.g. ECR pulls) via the NAT Gateway in network.tf
   }
 
   load_balancer {
@@ -155,8 +155,8 @@ resource "aws_ecs_service" "worker" {
   launch_type     = "FARGATE"
 
   network_configuration {
-    subnets          = data.aws_subnets.default.ids
+    subnets          = [aws_subnet.private_a.id, aws_subnet.private_b.id]
     security_groups  = [aws_security_group.ecs_service.id]
-    assign_public_ip = true
+    assign_public_ip = false # private subnet, reaches the internet (e.g. ECR pulls) via the NAT Gateway in network.tf
   }
 }

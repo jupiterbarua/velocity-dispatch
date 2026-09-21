@@ -2,10 +2,7 @@
 # redrive_policy can reference the DLQ's ARN. A message that fails
 # processing (see dispatch-worker's AssignOutcome::NoDriverAvailable path)
 # is redelivered up to `maxReceiveCount` times before landing here for a
-# human/ops process to inspect — the standard SQS resilience pattern, and
-# one directly informed by production incident-investigation experience
-# (see CV: "investigated production issues... captured for operational
-# follow-up").
+# human/ops process to inspect — the standard SQS resilience pattern.
 
 resource "aws_sqs_queue" "order_created_dlq" {
   name                      = "order-created-dlq-${var.environment}"

@@ -15,7 +15,7 @@ variables.tf) if you're outside that window or on a non-eligible
 
 **This is step one of two.** Once this is confirmed working, the next
 step (separate, not yet built) is a real AWS EKS cluster via Terraform —
-a stronger "Kubernetes on AWS" resume line, but with a $0.10/hr control
+a more production-like "Kubernetes on AWS" setup, but with a $0.10/hr control
 plane cost regardless of load and real IAM/VPC complexity, which is why
 it's worth verifying the simpler EC2 path first.
 

@@ -2,12 +2,12 @@
 
 | | |
 |---|---|
-| **Document type** | Software Requirements Specification (SRS), informal/portfolio format |
+| **Document type** | Software Requirements Specification (SRS), informal format |
 | **System** | Velocity Dispatch — real-time delivery dispatch platform |
 | **Author** | Jupiter Barua |
 | **Status** | Baseline — traceable to the implementation in this repository |
 
-This document exists for two reasons at once: it's the requirements analysis a real project like this would start from, and it's a deliberate demonstration of the "structured requirement analysis and technical design" line on my CV — every requirement below is traceable to a specific file in the implementation, not aspirational.
+This document is the requirements analysis a real project like this would start from — every requirement below is traceable to a specific file in the implementation, not aspirational.
 
 ## 1. Introduction
 
@@ -31,7 +31,6 @@ Velocity Dispatch accepts delivery orders, matches each one to the nearest avail
 
 ### 1.4 References
 
-- CV: "Interested in high-availability routing and logistics APIs, distributed systems, operational excellence and data-driven service quality" — the stated interest this project is built to demonstrate evidence for.
 - AWS Well-Architected Framework (Reliability & Performance Efficiency pillars) — informs NFR-2 through NFR-5.
 
 ## 2. Overall description
@@ -63,7 +62,7 @@ Rust/Tokio services running as Docker containers on AWS ECS Fargate (`dispatch-a
 
 ### 2.5 Constraints
 
-- Must run cost-effectively as a portfolio/demo deployment (see the Terraform's documented cost-saving choices: single-AZ RDS, `db.t4g.micro`, no NAT gateway).
+- Must run cost-effectively as a demo deployment (see the Terraform's documented cost-saving choices: single-AZ RDS, `db.t4g.micro`, no NAT gateway).
 - Must be fully runnable with zero AWS account/cost via Docker Compose + LocalStack, for local development and for anyone evaluating the repo without an AWS account.
 - Must compile without a live database connection (no `DATABASE_URL` required at `cargo build` time) — see ADR-1 in §10.
 
@@ -120,7 +119,7 @@ Each requirement has a priority (Must/Should/Could, MoSCoW) and points at the fi
 | ID | Requirement | Target / measure | Verified by |
 |---|---|---|---|
 | NFR-1 (Performance) | `POST /orders` response latency shall be independent of driver-matching cost. | Matching happens entirely outside the request path (architectural, not a runtime metric) | Code review: `routes.rs::create_order` does exactly one DB write + one SQS publish |
-| NFR-2 (Latency SLO) | Under a realistic concurrent load, `POST /orders` shall meet p95 < 150ms, p99 < 400ms, error rate < 1%. | See thresholds | `loadtest/orders.js` (k6), results to be filled into the README's latency table against a real deployment |
+| NFR-2 (Latency SLO) | Under a realistic concurrent load, `POST /orders` shall meet p95 < 150ms, p99 < 400ms, error rate < 1%. | See thresholds | `loadtest/orders.js` (k6), results to be recorded in the latency table in `docs/GETTING_STARTED.md` against a real deployment |
 | NFR-3 (Scalability) | The matching algorithm's complexity shall be an explicit, documented, revisitable choice, not an unstated assumption. | O(n) over region-filtered candidates, stated as the "complexity budget" for one dispatch region | `crates/dispatch-core/src/geo.rs` module doc comment |
 | NFR-4 (Resilience — messaging) | The system shall tolerate at-least-once delivery from both SQS and EventBridge without duplicate side effects. | No duplicate driver assignment; no duplicate audit record | `matching.rs` conditional claim; `audit.rs` idempotent S3 key |
 | NFR-5 (Resilience — dependency failure) | A failure in a non-critical downstream call (e.g. event publish) shall not fail an otherwise-successful primary transaction. | Order creation succeeds even if the SQS publish fails | `routes.rs::create_order` — publish failure is logged, not propagated as a request error |
@@ -156,13 +155,13 @@ Three entities — `Order`, `Driver`, `Assignment` — with the schema defined i
 
 ## 9. Out of scope
 
-Explicitly not built, so scope doesn't silently creep and so an interviewer's "did you build X" question has an honest "no, and here's why" answer available:
+Explicitly not built, so scope doesn't silently creep:
 
-- Authentication/authorization on the REST API (would be JWT-based, matching the pattern already used in my production work at Find & Hire — omitted here to keep the repo focused on the messaging/event architecture, which is the point of this project).
+- Authentication/authorization on the REST API (would be JWT-based, a common pattern for REST APIs — omitted here to keep the repo focused on the messaging/event architecture, which is the point of this project).
 - A rider/driver-facing UI or mobile app.
 - Real-time order tracking (e.g., WebSocket push of driver location) — the data model supports it (`drivers.lat/lon` updates), but no push mechanism is implemented.
 - Payments/billing.
-- Multi-region deployment (the Terraform is single-region; see the README's "What I'd change for production" section).
+- Multi-region deployment (the Terraform is single-region; see the "Production considerations" section of `docs/GETTING_STARTED.md`).
 
 ## 8.1 Known gap (backlog, not yet built)
 

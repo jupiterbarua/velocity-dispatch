@@ -1,7 +1,7 @@
 
 
 Velocity dispatch plan · MD
-Velocity Dispatch — showcase project (updated 2026-09-05, round 5 continued: pull-not-build)
+Velocity Dispatch — project (updated 2026-09-05, round 5 continued: pull-not-build)
 Status
 Repo is live on GitHub: https://github.com/jupiterbarua/velocity-dispatch.git. CI has run for real multiple times now, surfacing genuine bugs (see below). Local verification is still not complete — Jupiter's test machine is a 2015 MacBook Air (dual-core, low RAM, Intel x86_64), which turned out to be the real constraint the whole time, not just the release profile or missing cache mounts. Decision this round: stop trying to make local compilation fast enough on that hardware, and instead have CI publish tested images to GHCR so Jupiter can docker compose pull instead of building. See earlier round entries further down for architecture, requirements/CI-CD/SQS docs, monitoring, and Week 1 scoping — all still accurate.
 
@@ -27,10 +27,8 @@ Open items / do not forget
 GHCR package visibility decision pending — package will be private until Jupiter makes it public or authenticates. Follow up next time this comes up.
 test and terraform fmt + validate CI jobs' failures are still unresolved — root cause never seen (GitHub hides authenticated logs from me). Still waiting on Jupiter to paste that log text or run the equivalent commands locally/via a capable machine.
 Local Week 1 verification (scripts/week1_smoke_test.sh) still hasn't completed successfully — next step once the GHCR package is pullable: docker compose pull dispatch-api dispatch-worker && docker compose up, then the smoke test.
-docs/RESUME_BULLETS.md removal-from-GitHub request — walked through git rm --cached + .gitignore, flagged the two README references that would 404 once removed, Jupiter hasn't confirmed whether to strip those yet.
 FR-12 (delivery completion) — still undecided (manual endpoint vs geofence-driven). Do not implement without asking.
 Open question: should a future "delivered" transition also publish an EventBridge event? Not decided.
-Company research (Scalable Capital, Nelly Solutions, MOIA, Kraken, Keyrock) — captured in round-2 entry further down, still valid.
 Roadmap (only once Jupiter confirms): Week 2 = EventBridge + Lambda integration; Week 3 = Terraform AWS deploy re-validation; Week 4 = observe monitoring against a real deployment.
 Round 5 entry (2026-09-04 — first real compiler/CI contact), preserved for history
 GitHub push hit a stray SSH remote (git remote set-url fixed it, unrelated to code). First real CI run failed 3/4 jobs. Found and fixed a genuine bug from pasted fmt + clippy output: CoreError derived Eq but has an f64-holding variant, and f64 isn't Eq (NaN breaks reflexivity) — dropped Eq, kept PartialEq. Separately, local docker compose up --build took 1282+ seconds compiling a trivial crate — traced to Cargo.toml's deliberate [profile.release] (lto = true, codegen-units = 1, chosen for a faster/smaller production binary) making a from-scratch release compile very slow, worsened by the AWS SDK dependency graph. Jupiter asked to let the build finish once, then Ctrl+C'd anyway, so added a debug-profile dev build stage to both service Dockerfiles for local use, with docker-compose.yml targeting it — and had to explicitly pin target: runtime in ci.yml/deploy.yml since neither previously specified a target and would have silently started shipping the new dev stage otherwise. Also renamed a stage in dispatch-notify-lambda/Dockerfile for naming consistency.
@@ -42,7 +40,7 @@ Round 3 entry (2026-08-19 — monitoring/logging), preserved for history
 Surfaced the FR-12 gap (delivery completion never implemented) while discussing driver status/geofencing — documented, not built, pending a design decision. Built real /health readiness check, CloudWatch EMF business metrics, log-based error alarms, and a CloudWatch dashboard, all in one round after Jupiter multi-selected all four options.
 
 Round 2 entry, preserved for history
-Full requirements analysis, AWS CI/CD-to-Fargate pipeline (incl. GitHub OIDC IAM role fix), SQS implementation deep-dive doc, deployment guide. Company research: Scalable Capital best overall stack fit; Nelly Solutions (Berlin healthtech) strong fit; MOIA closest thematic match; Keyrock/Kraken assessed as a stretch given no trading-domain background.
+Full requirements analysis, AWS CI/CD-to-Fargate pipeline (incl. GitHub OIDC IAM role fix), SQS implementation deep-dive doc, deployment guide.
 
 
 

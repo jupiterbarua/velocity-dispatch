@@ -1,6 +1,6 @@
 # SQS Implementation Deep-Dive
 
-`dispatch-api` and `dispatch-worker` are connected by exactly one AWS SQS queue. This document is the complete picture of that one integration — configuration, message contract, consumer implementation, failure handling, and how to test it — since "how do you use SQS" is one of the most likely follow-up questions this project sets up (see `docs/RESUME_BULLETS.md`'s question table).
+`dispatch-api` and `dispatch-worker` are connected by exactly one AWS SQS queue. This document is the complete picture of that one integration — configuration, message contract, consumer implementation, failure handling, and how to test it.
 
 ## 1. Why SQS for this hop specifically
 
@@ -55,7 +55,7 @@ if let Err(err) = state.publisher.publish(&event).await {
 Ok(HttpResponse::Created().json(OrderResponse::from(order)))
 ```
 
-If the SQS publish fails after the database insert succeeds, the client still gets `201 Created`. This is intentional: the order already exists durably, so a stuck order is a recoverable operational issue (a reconciliation job scanning for `pending` orders with no corresponding SQS message older than N minutes, not currently implemented but the natural next addition — see `docs/REQUIREMENTS.md` §9 for what's explicitly out of scope today), while failing the *request* would be a false negative — telling a customer their order failed when it didn't. This mirrors the "resilient order-processing... core transactions remain successful when secondary notification operations fail" pattern from my production experience (see CV, "Selected Platform & Logistics-Relevant Work").
+If the SQS publish fails after the database insert succeeds, the client still gets `201 Created`. This is intentional: the order already exists durably, so a stuck order is a recoverable operational issue (a reconciliation job scanning for `pending` orders with no corresponding SQS message older than N minutes, not currently implemented but the natural next addition — see `docs/REQUIREMENTS.md` §9 for what's explicitly out of scope today), while failing the *request* would be a false negative — telling a customer their order failed when it didn't. This follows the common resilience pattern where core transactions remain successful when secondary notification operations fail.
 
 ## 5. Consumer side (`dispatch-worker`)
 

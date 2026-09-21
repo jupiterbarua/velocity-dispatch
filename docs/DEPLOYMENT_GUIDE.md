@@ -1,10 +1,10 @@
 # Deployment Guide — AWS CI/CD to ECS Fargate
 
-This is the step-by-step runbook for taking Velocity Dispatch from "code on GitHub" to "running on real AWS," and for how every subsequent deploy flows through CI without touching AWS credentials by hand again. It assumes you've already run the system locally via `docker compose up` (see the README) — deploying something you've never run is a bad first move regardless of how good the Terraform looks.
+This is the step-by-step runbook for taking Velocity Dispatch from "code on GitHub" to "running on real AWS," and for how every subsequent deploy flows through CI without touching AWS credentials by hand again. It assumes you've already run the system locally via `docker compose up` (see `docs/GETTING_STARTED.md`) — deploying something you've never run is a bad first move regardless of how good the Terraform looks.
 
 ## 0. What you're about to provision (and what it costs)
 
-Running `terraform apply` against `infra/terraform/` creates real, billed AWS resources: an RDS `db.t4g.micro` Postgres instance, two ECS Fargate services, an Application Load Balancer, an SQS queue pair, an EventBridge bus, a Lambda function, an S3 bucket, an SNS topic, and a set of CloudWatch alarms. Rough order of magnitude for a `dev`-sized deployment left running continuously: **$40-70/month**, dominated by the ALB (~$16-20/mo flat) and RDS (~$12-15/mo for `db.t4g.micro`) — Fargate and Lambda are usage-based and near-zero at demo traffic levels. **Section 7 covers tearing it all down** — do that between interview prep sessions rather than leaving it running, unless you specifically want a live demo URL to hand an interviewer.
+Running `terraform apply` against `infra/terraform/` creates real, billed AWS resources: an RDS `db.t4g.micro` Postgres instance, two ECS Fargate services, an Application Load Balancer, an SQS queue pair, an EventBridge bus, a Lambda function, an S3 bucket, an SNS topic, and a set of CloudWatch alarms. Rough order of magnitude for a `dev`-sized deployment left running continuously: **$40-70/month**, dominated by the ALB (~$16-20/mo flat) and RDS (~$12-15/mo for `db.t4g.micro`) — Fargate and Lambda are usage-based and near-zero at demo traffic levels. **Section 7 covers tearing it all down** — do that between sessions rather than leaving it running, unless you specifically want a live demo URL up.
 
 ## 1. One-time bootstrap: the OIDC trust relationship
 
@@ -75,7 +75,7 @@ Then check, in the AWS Console or CLI: CloudWatch Logs group `/ecs/velocity-disp
 k6 run -e BASE_URL=$API_URL loadtest/orders.js
 ```
 
-Fill the resulting p50/p95/p99/error-rate numbers into the README's latency table — those are the numbers worth having memorized before a systems-design interview, since "should be fast" and "p99 was 187ms under 200 concurrent users" land very differently.
+Record the resulting p50/p95/p99/error-rate numbers — real measurements are worth far more than "should be fast" (e.g. "p99 was 187ms under 200 concurrent users").
 
 ## 6. What happens when something goes wrong
 

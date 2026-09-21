@@ -7,8 +7,7 @@ version: "3.9"
 # not run as a server, so exercising it locally is done with
 # `cargo lambda watch` / `cargo lambda invoke` (see services/dispatch-notify-lambda/README.md)
 # rather than docker-compose. That distinction — "this deployable is
-# event-invoked, not long-running" — is itself one of the things worth being
-# able to explain in an interview.
+# event-invoked, not long-running" — is why it has no compose service.
 #
 # Two ways to get dispatch-api/dispatch-worker running, your choice:
 #   1. Pull the prebuilt image CI already tested and published (no local

@@ -1,7 +1,7 @@
 variable "aws_region" {
-  description = "AWS region to deploy into. eu-central-1 (Frankfurt) by default — lowest latency to German users/customers, and the region most German employers' own workloads run in."
+  description = "AWS region to deploy into. us-east-1 (N. Virginia) by default — AWS's largest, cheapest, and most feature-complete region, and the most common default in job-posting AWS environments."
   type        = string
-  default     = "eu-central-1"
+  default     = "us-east-1"
 }
 
 variable "environment" {
@@ -18,7 +18,7 @@ variable "container_image_tag" {
 
 variable "api_task_cpu" {
   type    = number
-  default = 256 # 0.25 vCPU — plenty for a demo; the README's load-test section shows how to right-size this from real numbers instead of guessing.
+  default = 256 # 0.25 vCPU — plenty for a demo; docs/GETTING_STARTED.md's "Measuring latency" section shows how to right-size this from real numbers instead of guessing.
 }
 
 variable "api_task_memory" {

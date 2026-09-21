@@ -32,8 +32,7 @@ k8s/base/
 Every file is commented with the *why*, not just the *what* — same style
 as the rest of this repo's Dockerfiles/docker-compose.yml — because "why
 StatefulSet not Deployment for Postgres" and "why NodePort not ClusterIP
-here" are exactly the questions this is meant to be able to answer in an
-interview.
+here" are exactly the questions the manifests are meant to answer.
 
 ## Prerequisites
 

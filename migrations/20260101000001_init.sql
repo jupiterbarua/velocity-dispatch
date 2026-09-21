@@ -1,10 +1,9 @@
 -- Initial schema for Velocity Dispatch.
 --
--- Notes on choices that are worth defending in an interview:
+-- Notes on design choices:
 --  * lat/lon stored as plain double precision, not PostGIS geography, to
---    keep the local dev stack (docker-compose) dependency-free. The
---    "next step at scale" section of the README calls out exactly where
---    PostGIS ST_DWithin + a GiST index would replace the in-process
+--    keep the local dev stack (docker-compose) dependency-free. At larger
+--    scale, PostGIS ST_DWithin + a GiST index would replace the in-process
 --    haversine scan in dispatch-core::geo.
 --  * status columns are plain text with a CHECK constraint rather than a
 --    Postgres ENUM type — enums are painful to migrate (ALTER TYPE ...

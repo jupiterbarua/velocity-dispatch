@@ -1,6 +1,6 @@
 resource "aws_db_subnet_group" "dispatch" {
   name       = "velocity-dispatch-${var.environment}"
-  subnet_ids = data.aws_subnets.default.ids
+  subnet_ids = [aws_subnet.private_a.id, aws_subnet.private_b.id]
 }
 
 resource "aws_db_instance" "dispatch" {
@@ -10,7 +10,7 @@ resource "aws_db_instance" "dispatch" {
 
   # db.t4g.micro: Graviton burstable instance, in the RDS Free Tier bracket —
   # right-sized for a portfolio deploy, not for real order volume. The
-  # README's load-test section documents how to read pg connection/CPU
+  # docs/GETTING_STARTED.md's "Measuring latency" section documents how to read pg connection/CPU
   # metrics to decide when this actually needs to grow.
   instance_class    = "db.t4g.micro"
   allocated_storage = 20
