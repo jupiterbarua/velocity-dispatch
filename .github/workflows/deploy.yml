@@ -51,7 +51,7 @@ jobs:
           print(json.dumps(json.loads(base64.urlsafe_b64decode(payload)), indent=2))
           " "$TOKEN"
       - id: tag
-        run: echo "tag=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
+        run: echo "tag=${GITHUB_SHA::12}-${GITHUB_RUN_ID}" >> "$GITHUB_OUTPUT"
 
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
