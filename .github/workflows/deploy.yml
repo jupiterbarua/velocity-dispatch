@@ -74,6 +74,8 @@ jobs:
           # the fully-optimized production stage, never the local-only `dev`
           # stage that dispatch-api/dispatch-worker's Dockerfiles also define.
           target: runtime
+          provenance: false
+          sbom: false
           push: true
           tags: |
             ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ matrix.repo }}:${{ steps.tag.outputs.tag }}
