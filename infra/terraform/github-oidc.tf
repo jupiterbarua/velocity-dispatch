@@ -170,6 +170,33 @@ data "aws_iam_policy_document" "deploy_terraform_managed_resources" {
     ]
     resources = ["*"]
   }
+
+  # AWS auto-creates an account-wide service-linked role the first time a
+  # given service is used in an account — the ALB's aws_lb.api resource
+  # needs AWSServiceRoleForElasticLoadBalancing, and RDS needs its own
+  # equivalent, neither of which existed in this account yet. The first
+  # real full apply failed on both with AccessDenied on
+  # iam:CreateServiceLinkedRole. Scoped by AWSServiceName rather than
+  # granted unconditionally, since this action is unusually powerful
+  # (it creates a role with a fixed AWS-managed policy outside this file's
+  # normal least-privilege review) and only two services actually need it.
+  statement {
+    sid    = "AllowServiceLinkedRoleCreation"
+    effect = "Allow"
+    actions = [
+      "iam:CreateServiceLinkedRole",
+    ]
+    resources = ["arn:aws:iam::*:role/aws-service-role/*"]
+
+    condition {
+      test     = "StringEquals"
+      variable = "iam:AWSServiceName"
+      values = [
+        "elasticloadbalancing.amazonaws.com",
+        "rds.amazonaws.com",
+      ]
+    }
+  }
 }
 
 resource "aws_iam_role_policy" "deploy_terraform_managed_resources" {
