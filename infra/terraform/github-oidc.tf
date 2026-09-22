@@ -49,10 +49,26 @@ data "aws_iam_policy_document" "github_actions_assume" {
     # once this repo has a real branch-protection story, deliberately left
     # broader here so PR-based `workflow_dispatch` runs (see deploy.yml,
     # which is manually triggered, not automatic) aren't accidentally locked out.
+    #
+    # Two patterns, not one, because of GitHub's "immutable subject claims"
+    # feature (shipped July 2026): any repo created on or after 2026-07-15 —
+    # this one was created 2026-09-04 — automatically gets its numeric
+    # owner/repo IDs spliced into the `sub` claim:
+    # "repo:<owner>@<owner_id>/<repo>@<repo_id>:ref:...", instead of the
+    # plain "repo:<owner>/<repo>:ref:..." the first pattern below expects.
+    # Those IDs never change even across a rename/transfer (that's the whole
+    # point of the feature), so they're hardcoded here rather than templated
+    # from var.github_repository — confirmed via
+    # `gh api repos/jupiterbarua/velocity-dispatch --jq '{owner_id:.owner.id,repo_id:.id}'`.
+    # The first pattern is kept too, purely so this module still works if
+    # ever reused against a pre-2026-07-15 repo that hasn't opted in.
     condition {
       test     = "StringLike"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${var.github_repository}:*"]
+      values = [
+        "repo:${var.github_repository}:*",
+        "repo:jupiterbarua@28349947/velocity-dispatch@1357590345:*",
+      ]
     }
   }
 }
@@ -105,8 +121,23 @@ data "aws_iam_policy_document" "deploy_terraform_managed_resources" {
       "sns:*",
       "lambda:*",
       "elasticloadbalancing:*",
-      "ec2:Describe*",
-      "ec2:*SecurityGroup*",
+      # Widened from "ec2:Describe*" + "ec2:*SecurityGroup*" to the full
+      # service when network.tf moved off the account's default VPC to a
+      # custom one — that change added aws_vpc/aws_subnet/
+      # aws_internet_gateway/aws_route_table/aws_eip/aws_nat_gateway, none
+      # of which the narrower permission set ever covered. First real
+      # full `terraform apply` through this role failed on exactly this gap
+      # (UnauthorizedOperation on ec2:CreateVpc / ec2:AllocateAddress).
+      "ec2:*",
+      # AmazonEC2ContainerRegistryPowerUser (attached below) covers image
+      # push/pull, but not repository lifecycle management — the first real
+      # apply failed with AccessDeniedException on ecr:CreateRepository
+      # because that action isn't in PowerUser at all.
+      "ecr:*",
+      # For the S3+DynamoDB state backend added in versions.tf — CI needs to
+      # read/write the state object in S3 (already covered by "s3:*" above)
+      # and take/release the DynamoDB lock during every apply.
+      "dynamodb:*",
       "logs:*",
       "cloudwatch:*",
       "iam:GetRole",
@@ -121,6 +152,21 @@ data "aws_iam_policy_document" "deploy_terraform_managed_resources" {
       "iam:ListRolePolicies",
       "iam:ListAttachedRolePolicies",
       "iam:TagRole",
+      # This file's own aws_iam_openid_connect_provider.github_actions is
+      # part of the same Terraform state as everything else here, so every
+      # `terraform apply` (not just the one-time human bootstrap) evaluates
+      # it for drift — e.g. a GitHub cert rotation changing the thumbprint
+      # via the live data.tls_certificate source. Needs at least read
+      # access for that; full lifecycle included in case of an actual
+      # thumbprint update. First real apply failed on
+      # iam:CreateOpenIDConnectProvider with no identity-based policy
+      # allowing it.
+      "iam:CreateOpenIDConnectProvider",
+      "iam:GetOpenIDConnectProvider",
+      "iam:DeleteOpenIDConnectProvider",
+      "iam:UpdateOpenIDConnectProviderThumbprint",
+      "iam:TagOpenIDConnectProvider",
+      "iam:ListOpenIDConnectProviders",
     ]
     resources = ["*"]
   }

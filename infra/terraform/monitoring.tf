@@ -131,12 +131,21 @@ resource "aws_cloudwatch_log_metric_filter" "app_errors" {
   pattern        = "{ $.level = \"ERROR\" }"
 
   metric_transformation {
-    name          = "ApplicationErrors"
-    namespace     = "VelocityDispatch/Logs"
-    value         = "1"
-    default_value = "0" # publish an explicit 0 for quiet periods, so the alarm always has a real datapoint rather than relying on treat_missing_data
-    unit          = "Count"
-    dimensions    = { Service = each.key }
+    name      = "ApplicationErrors"
+    namespace = "VelocityDispatch/Logs"
+    value     = "1"
+    unit      = "Count"
+    # No default_value here: AWS's PutMetricFilter API rejects setting
+    # default_value together with dimensions ("dimensions and default
+    # value are mutually exclusive properties") — a real error the first
+    # full `terraform apply` hit. dimensions has to stay (it's what keeps
+    # each service's error count separate under the one shared
+    # ApplicationErrors metric name/namespace below); the alarm's own
+    # treat_missing_data = "notBreaching" (see aws_cloudwatch_metric_alarm
+    # below) already does what the removed default_value was for — a
+    # quiet period with zero matching log lines is treated as "not
+    # breaching" rather than needing an explicit zero datapoint.
+    dimensions = { Service = each.key }
   }
 }
 
