@@ -114,7 +114,20 @@ resource "aws_cloudwatch_metric_alarm" "api_5xx_rate" {
 # without anyone needing to go look. `tracing_subscriber`'s JSON formatter
 # (see each service's `telemetry.rs`/`init_telemetry`) always emits a
 # top-level `"level"` field, which is what the filter pattern matches on.
-
+#
+# Separation is done via a *distinct metric name per service*
+# ("ApplicationErrors-${each.key}"), not a shared metric name plus a
+# `dimensions` map. An earlier version used
+# `dimensions = { Service = each.key }` here and hit a real
+# PutMetricFilter failure: "Invalid metric transformation: dimension value
+# must be valid selector". CloudWatch Logs metric filter dimensions can
+# only take values extracted from the log event itself via the filter
+# pattern's own field selectors (e.g. "$.someField") — a literal constant
+# string like each.key (a Terraform for_each key, not something present in
+# the log line) is never a valid selector, no matter what the value looks
+# like. Since the log group is already split per service, a per-service
+# metric name gives the same separation without needing a dimension at
+# all.
 locals {
   service_log_groups = {
     dispatch-api    = aws_cloudwatch_log_group.api.name
@@ -131,21 +144,17 @@ resource "aws_cloudwatch_log_metric_filter" "app_errors" {
   pattern        = "{ $.level = \"ERROR\" }"
 
   metric_transformation {
-    name      = "ApplicationErrors"
+    name      = "ApplicationErrors-${each.key}"
     namespace = "VelocityDispatch/Logs"
     value     = "1"
     unit      = "Count"
     # No default_value here: AWS's PutMetricFilter API rejects setting
-    # default_value together with dimensions ("dimensions and default
-    # value are mutually exclusive properties") — a real error the first
-    # full `terraform apply` hit. dimensions has to stay (it's what keeps
-    # each service's error count separate under the one shared
-    # ApplicationErrors metric name/namespace below); the alarm's own
-    # treat_missing_data = "notBreaching" (see aws_cloudwatch_metric_alarm
-    # below) already does what the removed default_value was for — a
-    # quiet period with zero matching log lines is treated as "not
-    # breaching" rather than needing an explicit zero datapoint.
-    dimensions = { Service = each.key }
+    # default_value together with dimensions. Moot now that dimensions is
+    # gone too, but the alarm's own treat_missing_data = "notBreaching"
+    # (see aws_cloudwatch_metric_alarm below) already does what a
+    # default_value would have been for anyway — a quiet period with zero
+    # matching log lines is treated as "not breaching" rather than needing
+    # an explicit zero datapoint.
   }
 }
 
@@ -155,8 +164,7 @@ resource "aws_cloudwatch_metric_alarm" "app_error_rate" {
   alarm_name          = "velocity-dispatch-${each.key}-error-spike-${var.environment}"
   alarm_description   = "5+ ERROR-level log lines from ${each.key} in a 5-minute window"
   namespace           = "VelocityDispatch/Logs"
-  metric_name         = "ApplicationErrors"
-  dimensions          = { Service = each.key }
+  metric_name         = "ApplicationErrors-${each.key}"
   statistic           = "Sum"
   period              = 300
   evaluation_periods  = 1

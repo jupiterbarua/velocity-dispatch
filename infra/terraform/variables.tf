@@ -48,8 +48,15 @@ variable "worker_desired_count" {
 }
 
 variable "db_username" {
+  # "dispatch" is rejected outright by RDS as a reserved word for the
+  # postgres engine — confirmed via a real CreateDBInstance failure:
+  # "MasterUsername dispatch cannot be used as it is a reserved word used
+  # by the engine". Same root cause as rds.tf's db_name (see that file's
+  # comment) but a separate AWS validation, hit on a later apply once the
+  # db_name one was already fixed — RDS checks reserved words against both
+  # fields independently.
   type      = string
-  default   = "dispatch"
+  default   = "dispatchadmin"
   sensitive = true
 }
 
