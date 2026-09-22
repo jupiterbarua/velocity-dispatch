@@ -16,7 +16,11 @@ resource "aws_db_instance" "dispatch" {
   allocated_storage = 20
   storage_type      = "gp3"
 
-  db_name  = "dispatch"
+  # "dispatch" alone is rejected by RDS as a reserved word for the postgres
+  # engine (confirmed via a real CreateDBInstance failure: "DBName dispatch
+  # cannot be used. It is a reserved word for this engine") — ecs.tf's
+  # local.db_url must be kept in sync with this exact name.
+  db_name  = "dispatchdb"
   username = var.db_username
   password = var.db_password
 

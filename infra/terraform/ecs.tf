@@ -18,7 +18,10 @@ resource "aws_cloudwatch_log_group" "worker" {
 }
 
 locals {
-  db_url = "postgres://${var.db_username}:${var.db_password}@${aws_db_instance.dispatch.address}:5432/dispatch"
+  # Path segment must match rds.tf's db_name exactly ("dispatchdb", not
+  # "dispatch" — RDS rejects "dispatch" outright as a reserved word for the
+  # postgres engine).
+  db_url = "postgres://${var.db_username}:${var.db_password}@${aws_db_instance.dispatch.address}:5432/dispatchdb"
 }
 
 resource "aws_ecs_task_definition" "api" {
